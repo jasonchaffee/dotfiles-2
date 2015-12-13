@@ -10,21 +10,9 @@ let maplocalleader = "\\"
 " Plugins and stuff
 nmap sk :SplitjoinSplit<CR>
 nmap sj :SplitjoinJoin<CR>
-
 nnoremap <Leader>a :call VimuxOpenRunner()<CR>
-nnoremap <silent> <Leader>g :<C-u>Unite grep:.           -no-quit<CR>
-nnoremap <silent> <Leader>b :<C-u>Unite buffer           -quick-match  -no-split<CR>
-nnoremap <silent> <Leader>p :<C-u>Unite file_rec/async:! -start-insert -no-split<CR>
-nnoremap <silent> <Leader>o :<C-u>Unite outline          -start-insert -no-split<CR>
-nnoremap <silent> <Leader>y :<C-u>Unite history/yank     -start-insert<CR>
-nnoremap <silent> <Leader>x :<C-u>Unite command          -start-insert<CR>
-nnoremap <silent> <Leader>j :<C-u>Unite tag              -start-insert<CR>
-nnoremap <silent> <Leader>i :<C-u>Unite unicode          -start-insert<CR>
-
-nnoremap <Leader>c :NeoComplCacheEnable<CR>
-inoremap <expr><TAB> pumvisible() ? "\<C-n>" : "\<TAB>"
-inoremap <expr><BS> neocomplcache#smart_close_popup() . "\<C-h>"
-inoremap <expr><C-h> neocomplcache#smart_close_popup() . "\<C-h>"
+xmap ga <Plug>(EasyAlign)
+nmap ga <Plug>(EasyAlign)
 
 " Inverted for Colemak + Improve up/down movement on wrapped lines http://vimbits.com/bits/25
 noremap k gj
@@ -36,6 +24,7 @@ vnoremap ; :
 nnoremap ' i
 vnoremap ' i
 nnoremap U <C-r>
+nnoremap <Leader>q :bd<CR>
 
 " Show most plugin keybindings  http://vimbits.com/bits/534
 nnoremap <silent> <Leader>? :map <Leader><CR>
@@ -72,35 +61,51 @@ nnoremap <Leader>u :syntax sync fromstart<cr>:redraw!<cr>
 " great for pasting Python lines into REPLs.
 nnoremap vv ^vg_
 
-" windows
-map <C-h> <C-w>h
-map <C-k> <C-w>j
-map <C-j> <C-w>k
-map <C-l> <C-w>l
-
-" case-insensitive
+" Case-insensitive commands
 command! E e
 command! W w
 command! Q q
 command! Wq wq
 command! WQ wq
 
-" buffer nav
+" Window navigation
+map <C-h> <C-w>h
+nnoremap <BS> <C-w>h
+map <C-k> <C-w>j
+map <C-j> <C-w>k
+map <C-l> <C-w>l
+
+" Buffer navigation
 nnoremap <Right> :bnext<CR>
 nnoremap <Left>  :bprev<CR>
 
-" List nav
+" List navigation
 nnoremap <Up>    :cprev<CR>zvzz
 nnoremap <Down>  :cnext<CR>zvzz
 
+" Toggles
+nnoremap <silent> <Leader>P :call ToggleOption('paste')<CR>
+nnoremap <silent> <Leader>W :call ToggleOption('wrap')<CR>
+nnoremap <silent> <Leader>S :call ToggleOption('spell')<CR>
+function! ToggleOption(option_name)
+	execute 'setlocal' a:option_name.'!'
+	execute 'setlocal' a:option_name.'?'
+endfunction
+
+" Settings
+nnoremap <silent> <Leader><Tab>t :setlocal noexpandtab<CR>
+nnoremap <silent> <Leader><Tab>2 :setlocal expandtab shiftwidth=2 softtabstop=2<CR>
+nnoremap <silent> <Leader><Tab>4 :setlocal expandtab shiftwidth=4 softtabstop=4<CR>
+nnoremap <silent> <Leader><Tab>8 :setlocal expandtab shiftwidth=8 softtabstop=8<CR>
+
 " Motion for numbers.  Great for CSS.  Lets you do things like this:
 " margin-top: 200px; -> daN -> margin-top: px;
-onoremap N :<c-u>call <SID>NumberTextObject(0)<cr>
-xnoremap N :<c-u>call <SID>NumberTextObject(0)<cr>
-onoremap aN :<c-u>call <SID>NumberTextObject(1)<cr>
-xnoremap aN :<c-u>call <SID>NumberTextObject(1)<cr>
-onoremap iN :<c-u>call <SID>NumberTextObject(1)<cr>
-xnoremap iN :<c-u>call <SID>NumberTextObject(1)<cr>
+onoremap N  :<C-u>call <SID>NumberTextObject(0)<cr>
+xnoremap N  :<C-u>call <SID>NumberTextObject(0)<cr>
+onoremap aN :<C-u>call <SID>NumberTextObject(1)<cr>
+xnoremap aN :<C-u>call <SID>NumberTextObject(1)<cr>
+onoremap iN :<C-u>call <SID>NumberTextObject(1)<cr>
+xnoremap iN :<C-u>call <SID>NumberTextObject(1)<cr>
 function! s:NumberTextObject(whole)
 	normal! v
 	while getline('.')[col('.')] =~# '\v[0-9]'
@@ -111,5 +116,27 @@ function! s:NumberTextObject(whole)
 		while col('.') > 1 && getline('.')[col('.') - 2] =~# '\v[0-9]'
 			normal! h
 		endwhile
+	endif
+endfunction
+
+" Kill buffers without closing panes
+nnoremap <silent> <Leader>k :Bclose<CR>
+command! Bclose call <SID>BufcloseCloseIt()
+function! <SID>BufcloseCloseIt()
+	let l:currentBufNum = bufnr("%")
+	let l:alternateBufNum = bufnr("#")
+
+	if buflisted(l:alternateBufNum)
+		buffer #
+	else
+		bnext
+	endif
+
+	if bufnr("%") == l:currentBufNum
+		new
+	endif
+
+	if buflisted(l:currentBufNum)
+		execute("bdelete! ".l:currentBufNum)
 	endif
 endfunction

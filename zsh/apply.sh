@@ -1,7 +1,10 @@
 #!/bin/sh
 echo "==> Installing zsh"
 
+mkdir -p ~/.tmp
+mkdir -p ~/.tmp/tmux
 mkdir -p ~/.zsh
+mkdir -p ~/.config/base16
 
 rm -r ~/.zsh/zshuery
 

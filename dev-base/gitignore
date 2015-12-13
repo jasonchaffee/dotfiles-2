@@ -1,4 +1,5 @@
 .DS_Store
+*.core
 .rbx
 *.pyc
 *.pyo
@@ -31,8 +32,6 @@ codex.tags
 .cabal-sandbox
 *.sublime-workspace
 *.sublime-project
-*.iml
-*.ipr
 *.iws
 
 # http://blog.illuminex.com/2009/10/better-sample-gitignore-file-for-xcode.html

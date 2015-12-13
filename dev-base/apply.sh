@@ -1,45 +1,36 @@
 #!/bin/sh
 echo "==> Installing dev-base"
 
-rm ~/.gitconfig
-cp gitconfig ~/.gitconfig
+mkdir -p ~/.tmp
 
-rm ~/.gitignore
-cp gitignore ~/.gitignore
+cat gitconfig > ~/.gitconfig
 
-rm ~/.hgrc
-cp hgrc ~/.hgrc
+cat gitignore > ~/.gitignore
 
-rm ~/.ackrc
-cp ackrc ~/.ackrc
+cat hgrc > ~/.hgrc
 
-rm ~/.ctags
-cp ctags ~/.ctags
+cat ackrc > ~/.ackrc
 
-rm ~/.curlrc
-cp curlrc ~/.curlrc
+sed -e "s/^#.*$//" < ctags > ~/.ctags
+
+cat curlrc > ~/.curlrc
 
 mkdir -p ~/.gnupg
-rm ~/.gnupg/gpg.conf
-cp gpg.conf ~/.gnupg/gpg.conf
+cat gpg.conf > ~/.gnupg/gpg.conf
 
-rm ~/.inputrc
-cp inputrc ~/.inputrc
+cat inputrc > ~/.inputrc
 
-rm ~/.lesskey
-cp lesskey ~/.lesskey
+cat lesskey > ~/.lesskey
 lesskey
 
-rm ~/.psqlrc
-cp psqlrc ~/.psqlrc
+cat psqlrc > ~/.psqlrc
 
-rm ~/.rc
-cp rc ~/.rc
+cat rc > ~/.rc
 
 mkdir -p ~/.ssh
-rm ~/.ssh/config
-cp ssh_config ~/.ssh/config
+cat ssh_config > ~/.ssh/config
 
-mkdir -p ~/.tmp
+mkdir -p ~/.config/peco
+cat peco.json > ~/.config/peco/config.json
 
 echo "==> Installed dev-base"

@@ -1,3 +1,4 @@
+# vim:set noexpandtab
 # This came from Greg V's dotfiles:
 #      https://github.com/myfreeweb/dotfiles
 # Feel free to steal it, but attribution is nice
@@ -9,13 +10,47 @@
 # https://github.com/nummi/my-config/blob/master/.zsh/completion.zsh
 # http://robots.thoughtbot.com/silver-searcher-tab-completion-with-exuberant-ctags
 # http://iterm2.com/shell_integration.html
+# http://sheerun.net/2014/03/21/how-to-boost-your-vim-productivity/
+# https://github.com/xero/dotfiles
+# https://github.com/eevee/rc
 
 # External plugins {{{
 source ~/.zsh/zsh-hl/zsh-syntax-highlighting.zsh
 source ~/.zsh/zsh-hss/zsh-history-substring-search.zsh
-[[ -z $BASE16_SCHEME ]] && export BASE16_SCHEME=twilight
-local BASE16_SHELL=~/.zsh/base16-shell/base16-$BASE16_SCHEME.dark.sh
-[[ -s $BASE16_SHELL ]] && source $BASE16_SHELL
+# }}}
+
+# XDG defaults {{{
+: ${XDG_CONFIG_HOME:="$HOME/.config"}
+: ${XDG_CACHE_HOME:="$HOME/.cache"}
+: ${XDG_DATA_HOME:="$HOME/.local/share"}
+: ${XDG_RUNTIME_DIR:="$HOME/.tmp"}
+# }}}
+
+# Color {{{
+base16() {
+	local SCHEME="$*"
+	local BASE16_SHELL="$HOME/.zsh/base16-shell/base16-$SCHEME.$BASE16_BACKGROUND.sh"
+	if [[ -s $BASE16_SHELL ]]; then
+		source $BASE16_SHELL
+		export BASE16_SCHEME="$SCHEME"
+		echo -n $SCHEME > $XDG_CONFIG_HOME/base16/scheme
+	else
+		echo "Looks like $BASE16_SHELL does not exist :-("
+	fi
+}
+
+background() {
+	echo -n "$*" > $XDG_CONFIG_HOME/base16/background
+	export BASE16_BACKGROUND="$*"
+	base16 $BASE16_SCHEME
+}
+
+light() { background light }
+dark() { background dark }
+_base16() { compadd $(find ~/.zsh/base16-shell | grep dark.sh | xargs basename | sed -e "s/base16-//" -e "s/\.dark\.sh//") }
+export BASE16_SCHEME="$(cat $XDG_CONFIG_HOME/base16/scheme 2>/dev/null || echo default)"
+export BASE16_BACKGROUND="$(cat $XDG_CONFIG_HOME/base16/background 2>/dev/null || echo dark)"
+background $BASE16_BACKGROUND
 # }}}
 
 # Support for tools, programming languages, etc {{{
@@ -27,9 +62,15 @@ export LESS_TERMCAP_so=$'\E[38;5;246m'
 export LESS_TERMCAP_ue=$'\E[0m'
 export LESS_TERMCAP_us=$'\E[04;33;146m'
 export LESS="-R"
+export LESSHISTFILE="$XDG_CACHE_HOME/less_history"
+export MANWIDTH="120"
+
+# Tmux
+export TMUX_TMPDIR="$XDG_RUNTIME_DIR"
 
 # Go
 export GOPATH=~
+export GOBIN=~/.local/bin
 [[ -e $commands[brew] ]] && export BREWGO=$(brew --prefix go)
 
 # JS
@@ -43,6 +84,9 @@ runjava() {
 	cp $1 /tmp/Main.java
 	(cd /tmp && javac Main.java && echo "--- compiled, running" && java Main)
 }
+
+# .NET Core
+[[ -e $commands[dnvm.sh] ]] && source dnvm.sh
 
 # Ruby
 export RBXOPT=-X19
@@ -58,8 +102,12 @@ bunforkify() {
 export PYTHONDONTWRITEBYTECODE=true
 export VIRTUALENV_DISTRIBUTE=true
 export PIP_USE_MIRRORS=true
-export PYTHONSTARTUP=~/.pythonrc
-export PYTHONUSERBASE=~ # pip install --user
+export PYTHONSTARTUP=$XDG_CONFIG_HOME/python/rc.py
+
+# Perl
+export PERL_MB_OPT="--install_base \"$HOME/.local\""
+export PERL_MM_OPT="INSTALL_BASE=$HOME/.local"
+export PERL5LIB=~/.local/lib/perl5:$PERL5LIB
 
 # Compiling stuff on OS X
 [[ -e $commands[brew] ]] && export ARCHFLAGS="-arch x86_64"
@@ -68,18 +116,23 @@ export PYTHONUSERBASE=~ # pip install --user
 [[ -e $commands[opam] ]] && eval $(opam config env)
 
 # Haskell
-:test() { make repl } # for the vimux/ghci trick
+:test() { stack ghci --ghc-options="-fno-hpc" } # for the vimux/ghci trick
+
+# Rust
+export RUST_SRC_PATH="$HOME/src/github.com/rust-lang/rust/src"
+export CARGO_HOME="$XDG_DATA_HOME/cargo"
+export CARGO_INSTALL_ROOT="$HOME/.local"
 # }}}
 
 # Aliases and functions {{{
 [[ -e ~/.rc ]] && source ~/.rc
-[[ ! -e $commands[gmake] ]] && alias gmake='make'
+[[ ! -e $commands[gmake] ]] && alias gmake=make
 dighost() { host $(dig $1 | grep ANSWER -C 1 | tail -n 1 | awk '{ print $5 }') }
-mcd() { mkdir -p "$1" && cd "$1"; }
-icd() { DIR=$(ls | peco) && cd $DIR && icd }
-prj() { cd ~/src/$(ghq list | peco) }
-hst() { eval $(history -n 1 | tail -r | peco --layout=bottom-up) }
-fuck() { sudo $(history -n -1) }
+mcd() { mkdir -p $1 && cd $1; }
+icd() { DIR=$(ls | $MENU) && cd $DIR && icd }
+prj() { cd ~/src/$(ghq list | $MENU) }
+hst() { eval $(history -n 1 | tail -r | $MENU --layout=bottom-up) }
+mdown() { pandoc -s -f markdown -t man "$*" | man -l - } # read markdown files like manpages
 
 if [[ -n $TMUX ]]; then
 	escseq() { printf "\033Ptmux;\033\033]$1\007\033\\" }
@@ -116,8 +169,18 @@ precmd() {
 		# green on *.local, *.localdomain and hostnames without dots
 		SCOLOR=$fg_bold[green]
 	else
-		# red everything else - that is, on production servers!
+		# red on everything else - that is, on production servers!
 		SCOLOR=$fg_bold[red]
+	fi
+}
+
+fancy-ctrl-z() {
+	if [[ $#BUFFER -eq 0 ]]; then
+		BUFFER=fg
+		zle accept-line
+	else
+		zle push-input
+		zle clear-screen
 	fi
 }
 # }}}
@@ -130,28 +193,33 @@ autoload -U edit-command-line && zle -N edit-command-line
 autoload -U url-quote-magic && zle -N self-insert url-quote-magic
 autoload -U select-word-style && select-word-style bash
 autoload -U zmv
-zle -N hst
+
 # Keybindings
+zmodload zsh/terminfo
 bindkey -e # Emacs style keys in shell
 bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
 bindkey "\e[3~" delete-char # Del
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
-bindkey '^R' hst
+bindkey '^H' backward-word
+bindkey '^L' forward-word
+zle -N hst && bindkey '^R' hst
+zle -N fancy-ctrl-z && bindkey '^Z' fancy-ctrl-z
+[[ -n $terminfo[kcuu1] ]] && bindkey $terminfo[kcuu1] history-substring-search-up
+[[ -n $terminfo[kcud1] ]] && bindkey $terminfo[kcud1] history-substring-search-down
+
 # Stuff
-setopt pushd_ignore_dups; setopt auto_pushd
-setopt auto_name_dirs; setopt auto_cd
-setopt transient_rprompt; setopt prompt_subst
-setopt no_beep; setopt multios
-setopt extended_glob; setopt interactive_comments
+setopt pushd_ignore_dups auto_pushd auto_name_dirs auto_cd \
+	transient_rprompt prompt_subst no_beep multios extended_glob interactive_comments
+
 # History
-setopt hist_ignore_dups; setopt hist_ignore_space
-setopt hist_reduce_blanks; setopt hist_verify
-setopt hist_expire_dups_first; setopt hist_find_no_dups
-setopt share_history; setopt extended_history
-setopt append_history; setopt inc_append_history
+setopt hist_ignore_dups hist_ignore_space hist_reduce_blanks hist_verify \
+ hist_expire_dups_first hist_find_no_dups share_history extended_history \
+ append_history inc_append_history
+
 # Completion
+setopt menu_complete # Autoselect the first suggestion
 setopt complete_in_word
 setopt no_complete_aliases # Actually: completes aliases! (I guess that means "no ~separate functions~ for aliases")
 unsetopt always_to_end
@@ -163,7 +231,9 @@ zstyle ':completion:*' list-colors ""
 zstyle ':completion:*' menu select=2 _complete _ignored _approximate
 zstyle ':completion:*' group-name ''
 zstyle ':completion:*' verbose yes
-zstyle ':completion:*:descriptions' format "- %{${fg[yellow]}%}%d%{${reset_color}%} -"
+zstyle ':completion:*:default' list-prompt '%S%M matches%s'
+zstyle ':completion:*:prefix:*' add-space true
+zstyle ':completion:*:descriptions' format "|| %{${fg[yellow]}%}%d%{${reset_color}%}"
 zstyle ':completion:*:messages' format $'\e[00;31m%d'
 zstyle ':completion:*:manuals' separate-sections true
 zstyle ':completion:*:manuals.(^1*)' insert-sections true
@@ -173,13 +243,17 @@ zstyle ':completion:*:approximate:*' max-errors 1 numeric
 zstyle ':completion:*:cd:*' ignore-parents parent pwd
 zstyle ':completion:*:rm:*' ignore-line yes
 zstyle ':completion:*:*:*:processes' list-colors "=(#b) #([0-9]#) ([0-9a-z-]#)*=01;34=0=01"
-zstyle ':completion:*:*:*:processes' command "ps -u $(whoami) -o pid,user,comm -w -w"
+zstyle ':completion:*:*:*:processes' command "ps -u $USER -o pid,user,comm -w -w"
 zstyle ':completion:*:*:*:*:hosts' list-colors "=*=$color[cyan];$color[bg-black]"
 zstyle ':completion:*:functions' ignored-patterns "_*"
 zstyle ':completion:*:original' list-colors "=*=$color[red];$color[bold]"
 zstyle ':completion:*:parameters' list-colors "=[^a-zA-Z]*=$color[red]"
 zstyle ':completion:*:aliases' list-colors "=*=$color[green]"
-fpath=(~/.zsh/zsh-completions/src(N) /usr/local/share/zsh/site-functions(N) $fpath)
+fpath+=(
+	~/.zsh/zsh-completions/src(N)
+	$XDG_DATA_HOME/zsh/site-functions(N)
+	/usr/local/share/zsh/site-functions(N)
+)
 fignore+=.DS_Store
 compinit -i
 compdef mcd=cd
@@ -189,34 +263,58 @@ compdef _ctagscomp ag
 compdef _ctagscomp pt
 _loadkeys() { compadd $(find ~/.ssh -perm 0600 ! -type s | xargs basename) }
 compdef _loadkeys loadkeys
+compdef _base16 base16
 
-HISTFILE=~/.zsh_history
+alias find="noglob find"
+alias wget="noglob wget"
+
+HISTFILE=$XDG_RUNTIME_DIR/history_zsh
 HISTSIZE=4096
 SAVEHIST=4096
+setopt HIST_EXPIRE_DUPS_FIRST
 ZSH_HIGHLIGHT_HIGHLIGHTERS=(main brackets)
 WORDCHARS='*?_-.[]~=&;!#$%^(){}<>' # Like default, but without / -- ^W must be useful in paths, like it is in vim, bash, tcsh
 export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
 export CLICOLOR="yes"
-export PAGER="less"
-export EDITOR="vim"
-[[ -e $commands[nvim] ]] && export EDITOR="nvim" && alias vi="nvim"
 
 PROMPT='%{$SCOLOR%}${PWD/#~/~}%{$reset_color%} %{$fg_no_bold[yellow]%}:$SMILEY%{$reset_color%} '
 
-cdpath=(~/src/github.com/myfreeweb ~/src/bitbucket.org/wmru)
+cdpath=(~/src/github.com/myfreeweb)
 
 typeset -U path # U for Unique, like a set; (N) == only if exists
 path=(
 	.git/safe/../../bin
-	~/bin(N) ~/.cask/bin(N)
+	~/.local/bin(N) ~/bin(N) ~/.cask/bin(N)
 	$BREWGO/bin(N) $BREWGO/libexec/bin(N) /usr/local/go/bin(N)
 	$JAVA_HOME/bin(N)
-	$RBENV_ROOT/bin(N)
+	$RBENV_ROOT/shims(N)
 	/usr/local/share/npm/bin(N)
 	/usr/local/sbin /usr/local/bin /sbin /bin $path
 )
 export PATH
+# }}}
+
+# Default programs {{{
+# (must come after PATH)
+[[ -e $commands[more] ]] && export PAGER=more
+[[ -e $commands[less] ]] && export PAGER=less
+alias pg=$PAGER
+
+[[ -e $commands[vi]   ]] && export EDITOR=vi   VISUAL=vi
+[[ -e $commands[vim]  ]] && export EDITOR=vim  VISUAL=vim
+[[ -e $commands[nvim] ]] && export EDITOR=nvim VISUAL=nvim
+alias vi=$VISUAL
+
+[[ -e $commands[percol] ]] && export MENU=percol
+[[ -e $commands[peco]   ]] && export MENU=peco
+[[ -e $commands[fzf]    ]] && export MENU=fzf
+alias mn=$MENU
+
+[[ -e $commands[ack] ]] && export SEARCH=ack
+[[ -e $commands[ag]  ]] && export SEARCH=ag
+[[ -e $commands[pt]  ]] && export SEARCH=pt
+alias sr=$SEARCH
 # }}}
 
 # Arcane SSH/GPG agent stuff {{{
@@ -237,6 +335,8 @@ if [[ -e ~/.gnupg/enable-agent ]]; then
 fi
 export GPG_TTY=$(tty)
 # }}}
+
+[[ $TERM == "st-256color" ]] && export TERM=xterm-256color
 
 [[ -e $commands[showkeys] ]] && showkeys
 [[ -e $commands[fortune] ]] && fortune | (cowsay -f small || cat) 2&> /dev/null | (lolcat || cat) 2&>/dev/null

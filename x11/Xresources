@@ -4,13 +4,7 @@ Xft.hinting:          true
 Xft.hintstyle:        hintfull
 Xft.lcdfilter:        lcdlight
 
-#include "%home%/.base16-xresources/base16-twilight.dark.256.xresources"
-
-URxvt.scrollBar:      false
-URxvt.loginShell:     true
-URxvt.font:           xft:monospace:size=9,xft:DejaVu Sans Mono:size=9
-! Monospace is set in fonts.conf
-URxvt.letterSpace:    -2
-URxvt.termName:       xterm-256color
-URxvt.depth:          32
-URxvt.background:     rgba:2700/2800/2200/ee00
+rofi.fuzzy:           true
+rofi.font:            monospace 12
+rofi.padding:         10
+rofi.width:           720
